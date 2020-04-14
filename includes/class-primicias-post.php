@@ -248,7 +248,7 @@ class PostRepository extends Repository {
 		global $wpdb;
 		$post_name = sanitize_title($image->title);
 		$post_found = $wpdb->get_results($wpdb->prepare("SELECT id  FROM  wp_posts WHERE post_name = %s", $post_name));
-		var_dump($post_found);
+		//var_dump($post_found);
 		if(count($post_found) == 0) {
 			return 0;
 		} else {
