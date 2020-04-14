@@ -21,6 +21,7 @@ class PrimiciasMain {
 	 	//add_action('wp_ajax_start_migration', array($this, 'start_migration'));
 	 //	add_action( 'admin_init', array( $this, 'primicias_register_settings_options' ));
 	 	add_action( 'admin_post_start_migration', array( $this,'start_migration' ));
+	 	add_action( 'admin_post_start_img_migration', array( $this,'start_img_migration' ));
 	}
 
 	/*public function primicias_register_settings_options() {
@@ -63,6 +64,20 @@ class PrimiciasMain {
 
 			$result = $this->postRepository->importPosts();
 
+		    wp_die();
+
+		} catch(Exception $e) {
+			status_header( 500,  $e->getMessage());
+			wp_die();
+		}	
+		
+	}
+
+	public function start_img_migration() {
+
+		try {
+
+			$this->postRepository->importPostsImages();
 		    wp_die();
 
 		} catch(Exception $e) {
