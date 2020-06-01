@@ -20,8 +20,11 @@ class PostRepository extends Repository {
 
 	public function create($newPost) {
 
+		$pdfs = $this->getPdfsFromPost();
+
 		$postarr = array(
 
+			'ID' 					=> $newPost->id,
 			'post_author'           => get_current_user_id(),
 	        'post_content'          => $newPost->content,
 	        'post_date'             => date($newPost->date),
@@ -53,6 +56,20 @@ class PostRepository extends Repository {
 
 		return $posts;
 
+	}
+
+	public function getImagesFromPost($post_id){
+		$get_conn = $this->db->getConnection();
+		$images = $get_conn->get_results("SELECT DISTINCT   n.id, n.title, f.name as image_name
+											FROM news n 
+											join file_new as fn 
+											on fn.new_id  = n.id 
+											join files as f 
+											on f.id = fn.file_id 
+											WHERE fn.type = 'full' AND f.type  = 'image'
+											ORDER BY n.date DESC
+											LIMIT $min, $max");
+		return $images;
 	}
 
 	public function getImages($min, $max) {
@@ -254,6 +271,14 @@ class PostRepository extends Repository {
 		} else {
 			return intval($post_found[0]->id);
 		}
+	}
+
+	public function getPdfsFromPost($post_id) {
+
+	}
+
+	public function setPdfComponent() {
+		$template = '<div class="wp-block-file"><a href="https://primicias24.s3.amazonaws.com/public/uploads/2020/05/Diagrama-de-secuencia-pago.pdf">Diagrama de secuencia (pago)</a><a href="https://primicias24.s3.amazonaws.com/public/uploads/2020/05/Diagrama-de-secuencia-pago.pdf" class="wp-block-file__button" download="">Descarga</a></div>';
 	}
 }
 

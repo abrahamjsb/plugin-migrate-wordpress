@@ -14,7 +14,7 @@ class Repository {
 	public function setDatabase() {
 
 		$hostname = "127.0.0.1";
-		$db = "nprimicias24";
+		$db = "primicias";
 		$user = "root";
 		$password = "";
 
