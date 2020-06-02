@@ -15,7 +15,7 @@ class PostRepository extends Repository {
 	private $currentPosition = 0;
 	private $insertError = 0;
 	private $countInserted = 0;
-	private const CHUNK_CONFIG = 500;
+	private const CHUNK_CONFIG = 1;
 	private const image_base_url = "https://primicias24.s3.us-east-2.amazonaws.com/public/uploads/images/";
 	private const pdf_url = "https://primicias24.s3.us-east-2.amazonaws.com/public/uploads/pdf/";
 
@@ -23,12 +23,20 @@ class PostRepository extends Repository {
 
 		$pdfs = $this->getPdfsFromPost($newPost->id);
 
-		$content = $newPost->content; 		
+		$date_start = new \DateTime('');			
+			
 		if($pdfs != 0) {
 			$formatted_component = $this->attachPdfsToContent($pdfs);
 
 			$content .= $formatted_component;
 		}
+
+			$date_end = new \DateTime('');
+			$diff_time = date_diff($date_start,$date_end);
+			echo "END INSERT PDF.......... time: ".$diff_time->format('%h:%i:%s');
+
+		$content = $newPost->content; 		
+		
 
 		$postarr = array(
 
@@ -46,10 +54,13 @@ class PostRepository extends Repository {
 		
 		$insert_post_action = wp_insert_post( $postarr );
 
+		var_dump($insert_post_action);
+		exit;
 		if(is_wp_error( $insert_post_action )) {
 			$this->insertError += 1;
 		} else {
-
+			$datei_start = new \DateTime('');
+			
 			$images = $this->getImagesFromPost($newPost->id);
 
 			if($images != 0) {
@@ -57,10 +68,11 @@ class PostRepository extends Repository {
 				$this->insertFeaturedImage($image_full_path, $newPost->id);
 			}
 
-			$this->countInserted += 1;
+			$datei_end = new \DateTime('');
+			$diffi_time = date_diff($datei_start,$datei_end);
+			echo "END INSERT img.......... time: ".$diffi_time->format('%h:%i:%s');
 
-			$save_position = $this->currentChunk . "," . $this->prevChunk;
-			update_option("primicias-current-position", $save_position);
+			$this->countInserted += 1;
 		}
 	}
 
@@ -147,7 +159,7 @@ class PostRepository extends Repository {
 		if($existPositionOption){
 			$options = explode(",", $existPositionOption);
 			$this->currentChunk = $options[0];
-			$this->prevChunk = $options[1];
+			$this->prevChunk = $options[0];
 		}
 
 		$date_a = new \DateTime('');
@@ -160,6 +172,8 @@ class PostRepository extends Repository {
 				$posts = $this->get($this->prevChunk, $this->currentChunk);
 				$this->insertChunkOfPosts($posts);
 				echo "<p>Chunk: ".count($posts).".............. " . $this->prevChunk . " - " . $this->currentChunk  .  "</p>";
+				$save_position = $this->currentChunk . "," . $this->prevChunk;
+				update_option("primicias-current-position", $save_position);
 				$this->prevChunk = $this->currentChunk;
 			} else {
 				$this->currentChunk = $this->currentChunk + $diff;
@@ -189,8 +203,11 @@ class PostRepository extends Repository {
 
 	public function insertChunkOfPosts($arrayPosts) {
 		foreach($arrayPosts as $post) {
-
+			$date_start = new \DateTime('');			
 			$this->create($post);
+			$date_end = new \DateTime('');
+			$diff_time = date_diff($date_start,$date_end);
+			echo "END INSERT POST.......... time: ".$diff_time->format('%h:%i:%s');
 		}
 	}
 
