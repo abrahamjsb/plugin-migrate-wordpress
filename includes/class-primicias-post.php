@@ -22,6 +22,7 @@ class PostRepository extends Repository {
 	public function create($newPost) {
 
 		$pdfs = $this->getPdfsFromPost($newPost->id);
+		$content = $newPost->content; 
 
 		$date_start = new \DateTime('');			
 			
@@ -35,12 +36,8 @@ class PostRepository extends Repository {
 			$diff_time = date_diff($date_start,$date_end);
 			echo "END INSERT PDF.......... time: ".$diff_time->format('%h:%i:%s');
 
-		$content = $newPost->content; 		
-		
 
 		$postarr = array(
-
-			'ID' 					=> $newPost->id,
 			'post_author'           => get_current_user_id(),
 	        'post_content'          => $content,
 	        'post_date'             => date($newPost->date),
@@ -54,8 +51,7 @@ class PostRepository extends Repository {
 		
 		$insert_post_action = wp_insert_post( $postarr );
 
-		var_dump($insert_post_action);
-		exit;
+		
 		if(is_wp_error( $insert_post_action )) {
 			$this->insertError += 1;
 		} else {
