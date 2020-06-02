@@ -17,16 +17,24 @@ class PostRepository extends Repository {
 	private $countInserted = 0;
 	private const CHUNK_CONFIG = 500;
 	private const image_base_url = "https://primicias24.s3.us-east-2.amazonaws.com/public/uploads/images/";
+	private const pdf_url = "https://primicias24.s3.us-east-2.amazonaws.com/public/uploads/pdf/";
 
 	public function create($newPost) {
 
-		$pdfs = $this->getPdfsFromPost();
+		$pdfs = $this->getPdfsFromPost($newPost->id);
+
+		$content = $newPost->content; 		
+		if($pdfs != 0) {
+			$formatted_component = $this->attachPdfsToContent($pdfs);
+
+			$content .= $formatted_component;
+		}
 
 		$postarr = array(
 
 			'ID' 					=> $newPost->id,
 			'post_author'           => get_current_user_id(),
-	        'post_content'          => $newPost->content,
+	        'post_content'          => $content,
 	        'post_date'             => date($newPost->date),
 	        'post_title'            => $newPost->title,
 	        'post_excerpt'          => $newPost->summary,
@@ -41,35 +49,44 @@ class PostRepository extends Repository {
 		if(is_wp_error( $insert_post_action )) {
 			$this->insertError += 1;
 		} else {
+
+			$images = $this->getImagesFromPost($newPost->id);
+
+			if($images != 0) {
+				$image_full_path = self::image_base_url . $images->name;
+				$this->insertFeaturedImage($image_full_path, $newPost->id);
+			}
+
 			$this->countInserted += 1;
+
+			$save_position = $this->currentChunk . "," . $this->prevChunk;
+			update_option("primicias-current-position", $save_position);
 		}
-	}
-
-	public function update() {
-
 	}
 
 	public function get($min, $max) {
 
 		$get_conn = $this->db->getConnection();
-		$posts = $get_conn->get_results("SELECT * FROM  news ORDER BY news.date ASC LIMIT $min, $max");
+		$posts = $get_conn->get_results("SELECT * FROM  news ORDER BY news.date DESC LIMIT $min, $max");
 
 		return $posts;
 
 	}
 
 	public function getImagesFromPost($post_id){
-		$get_conn = $this->db->getConnection();
-		$images = $get_conn->get_results("SELECT DISTINCT   n.id, n.title, f.name as image_name
-											FROM news n 
-											join file_new as fn 
-											on fn.new_id  = n.id 
-											join files as f 
-											on f.id = fn.file_id 
-											WHERE fn.type = 'full' AND f.type  = 'image'
-											ORDER BY n.date DESC
-											LIMIT $min, $max");
-		return $images;
+		try {
+			$get_conn = $this->db->getConnection();
+			$images = $get_conn->get_results($get_conn->prepare("SELECT f.name, f.description, f.type FROM file_new as fn  LEFT JOIN files as f on fn.file_id = f.id WHERE fn.new_id = %d AND f.type = 'image' AND fn.type = 'full'", $post_id));
+			if(count($images) == 0) {
+				return 0;
+			} else {
+				return $images[0];
+			}
+			
+		} catch(Exception $e) {
+			echo "Failed query image(getImagesFromPost): " . $e->getMessage();
+		}
+		
 	}
 
 	public function getImages($min, $max) {
@@ -85,10 +102,6 @@ class PostRepository extends Repository {
 											ORDER BY n.date DESC
 											LIMIT $min, $max");
 		return $images;
-	}
-
-	public function delete() {
-
 	}
 
 	public function setCategory($categoryId) {
@@ -124,15 +137,22 @@ class PostRepository extends Repository {
 
 		$postsLength = $this->postsLength == 0 ? $this->setPostsLength() : $this->postsLength;
 		$existPositionOption = get_option( "primicias-current-position" );
+
+		if($existPositionOption == false) {
+			$settedOption = add_option("primicias-current-position", "0,0");
+		}
+
 		$postsLeft = $this->postsLeft;
 
 		if($existPositionOption){
-			$this->currentPosition = $existPositionOption;
+			$options = explode(",", $existPositionOption);
+			$this->currentChunk = $options[0];
+			$this->prevChunk = $options[1];
 		}
 
 		$date_a = new \DateTime('');
 		
-		while($this->currentChunk < $postsLength) {
+		if($this->currentChunk < $postsLength) {
 
 			$diff = $postsLength - $this->currentChunk;
 			if($diff > self::CHUNK_CONFIG){
@@ -183,14 +203,8 @@ class PostRepository extends Repository {
 
 	public function insertFeaturedImage( $image_url, $post_id  ){
 	    $upload_dir = wp_upload_dir();
-	    //$image_data = file_get_contents($image_url);
 	    $filename = basename($image_url);
-	   /* if(wp_mkdir_p($upload_dir['path']))
-	      $file = $upload_dir['path'] . '/' . $filename;
-	    else*/
-	      $file = $upload_dir['basedir'] . '/images/' . $filename;
-	    //file_put_contents($file, $image_data);
-
+	    $file = $upload_dir['basedir'] . '/images/' . $filename;
 	    $wp_filetype = wp_check_filetype($filename, null );
 	    $attachment = array(
 	        'post_mime_type' => $wp_filetype['type'],
@@ -274,11 +288,32 @@ class PostRepository extends Repository {
 	}
 
 	public function getPdfsFromPost($post_id) {
+		try {
+			
+			$get_conn = $this->db->getConnection();
+			$query = $get_conn->get_results($get_conn->prepare("SELECT f.name, f.description, f.type FROM file_new as fn  LEFT JOIN files as f on fn.file_id = f.id WHERE fn.new_id = %d AND f.type = 'pdf'", $post_id));
+			if(count($query) == 0) {
+				return 0;
+			} else {
+				return $query;
+			}
+		} catch(Exception $e){
+			 echo "Failed query pdf (getPdfsFromPost): " . $e->getMessage();
+		}
 
 	}
 
-	public function setPdfComponent() {
-		$template = '<div class="wp-block-file"><a href="https://primicias24.s3.amazonaws.com/public/uploads/2020/05/Diagrama-de-secuencia-pago.pdf">Diagrama de secuencia (pago)</a><a href="https://primicias24.s3.amazonaws.com/public/uploads/2020/05/Diagrama-de-secuencia-pago.pdf" class="wp-block-file__button" download="">Descarga</a></div>';
+	public function attachPdfsToContent($arr_pdfs){
+		$template = "<br><br>";
+		foreach ($arr_pdfs as $pdf) {
+			$template .= $this->setPdfComponent($pdf);
+		}
+
+		return $template;
+	}
+
+	public function setPdfComponent($element) {
+		return '<div class="wp-block-file"><a href="'.self::pdf_url.$element->name.'">'.$element->description.'</a><a href="'.self::pdf_url.$element->name.'" class="wp-block-file__button" download="">Descarga</a></div>';
 	}
 }
 

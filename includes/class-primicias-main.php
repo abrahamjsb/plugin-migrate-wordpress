@@ -63,7 +63,9 @@ class PrimiciasMain {
 		try {
 
 			$result = $this->postRepository->importPosts();
-
+			//$result = $this->postRepository->getImagesFromPost(133704);
+			var_dump($result);
+			exit;
 		    wp_die();
 
 		} catch(Exception $e) {
