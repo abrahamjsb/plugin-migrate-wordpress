@@ -15,7 +15,7 @@ class PostRepository extends Repository {
 	private $currentPosition = 0;
 	private $insertError = 0;
 	private $countInserted = 0;
-	private const CHUNK_CONFIG = 1;
+	private const CHUNK_CONFIG = 5;
 	private const image_base_url = "https://primicias24.s3.us-east-2.amazonaws.com/public/uploads/images/";
 	private const pdf_url = "https://primicias24.s3.us-east-2.amazonaws.com/public/uploads/pdf/";
 
@@ -46,7 +46,7 @@ class PostRepository extends Repository {
 	        'post_status'           => 'publish',
 	        'post_type'             => 'post',
 	        'post_category'         => array($this->setCategory($newPost->section_id)),
-	        'import_id'             => 0
+	        'import_id'             => $newPost->id
 		);
 		
 		$insert_post_action = wp_insert_post( $postarr );
